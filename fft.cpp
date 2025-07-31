@@ -109,7 +109,7 @@ bool generate_W_k_N(float **W_k_N_RE, float **W_k_N_IM, int N)
     return true;
 }
 
-// Perform iterative Cooley–Tukey FFT using precomputed twiddle factors
+// Perform iterative Cooley-Tukey FFT using precomputed twiddle factors
 bool fft(float **x, float **X_RE, float **X_IM, float **freq,
          float fs, int N, unsigned int **order,
          float **W_k_N_RE, float **W_k_N_IM)
