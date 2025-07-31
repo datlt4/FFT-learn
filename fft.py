@@ -80,6 +80,9 @@ if __name__ == "__main__":
     # Thêm nhiễu Gaussian
     noise = 0.1 * np.random.normal(size=N)
     x += noise
+    
+    with open("signals.bin", "rb") as f:
+        x = np.fromfile(f, dtype=np.float32)
 
     # Tính FFT
     X_np = np.fft.fft(x)
@@ -107,52 +110,58 @@ if __name__ == "__main__":
     my_magnitude2 = np.abs(my_X2)
 
     # Load binary files
-    with open("fft.bin", "rb") as f:
+    with open("signals.bin", "rb") as f:
+        x_cpp = np.fromfile(f, dtype=np.float32)
+
+    with open("fft_result.bin", "rb") as f:
         X_cpp = np.fromfile(f, dtype=np.float32)
 
     # Vẽ tín hiệu trong miền thời gian
     plt.figure(figsize=(12, 5))
-    plt.subplot(5, 1, 1)
+    plt.subplot(6, 1, 1)
     plt.plot(t, x, label='Tín hiệu')
     plt.xlabel('Thời gian (s)')
     plt.ylabel('Biên độ')
-    # plt.title('Tín hiệu trong miền thời gian')
     plt.grid()
     plt.legend()
     
     # Vẽ phổ tần số (f>0)
-    plt.subplot(5, 1, 2)
+    plt.subplot(6, 1, 2)
     plt.plot(frequencies_np, magnitude_np, label='Phổ tần số')
     plt.xlabel('Tần số (Hz)')
     plt.ylabel('Độ lớn')
-    # plt.title('Phổ tần số')
     plt.grid()
     plt.legend()
 
     # Vẽ tín hiệu trong miền tần số
-    plt.subplot(5, 1, 3)
+    plt.subplot(6, 1, 3)
     plt.plot(my_frequencies, my_magnitude, label='FFT thủ công python')
     plt.xlabel('Tần số (Hz)')
     plt.ylabel('Độ lớn')
-    # plt.title('FFT thủ công python')
     plt.grid()
     plt.legend()
 
     # Vẽ tín hiệu trong miền tần số
-    plt.subplot(5, 1, 4)
+    plt.subplot(6, 1, 4)
     plt.plot(my_frequencies, my_magnitude, label='FFT thủ công chatgpt')
     plt.xlabel('Tần số (Hz)')
     plt.ylabel('Độ lớn')
-    # plt.title('FFT thủ công chatgpt')
+    plt.grid()
+    plt.legend()
+    
+    # Vẽ tín hiệu trong miền tần số
+    plt.subplot(6, 1, 5)
+    plt.plot(t, x_cpp, label='Tín hiệu x cpp')
+    plt.xlabel('Thời gian (s)')
+    plt.ylabel('Biên độ')
     plt.grid()
     plt.legend()
 
     # Vẽ phổ tần số (f>0)
-    plt.subplot(5, 1, 5)
+    plt.subplot(6, 1, 6)
     plt.plot(my_frequencies, X_cpp, label='FFT thủ công cpp')
     plt.xlabel('Tần số (Hz)')
     plt.ylabel('Độ lớn')
-    # plt.title('FFT thủ công cpp')
     plt.grid()
     plt.legend()
 

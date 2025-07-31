@@ -16,8 +16,8 @@ enum ret_code
     ret_fail_memory_generate_signals=-2,
     ret_fail_memory_generate_W_k_N=-3,
     ret_fail_memory_fft=-4,
-    ret_fail_memory_abs_fft=-5
-
+    ret_fail_memory_abs_fft=-5,
+    ret_save_file=-6
 };
 
 template <typename T>
@@ -80,7 +80,7 @@ bool generate_signals(float **x, int N, float fs)
         (*x)[i] = 0.5 * sin(2 * M_PI * f1 * t) + 0.3 * sin(2 * M_PI * f2 * t);
         t += delta_t;
         // Thêm nhiễu Gaussian
-        float noise = 0.1 * rand() / RAND_MAX - 0.05; // Giả sử nhiễu Gaussian có trung bình 0 và phương sai 0.01
+        float noise = 0.2 * rand() / RAND_MAX - 0.05; // Giả sử nhiễu Gaussian có trung bình 0 và phương sai 0.01
         (*x)[i] += noise;
     }
     return true;
@@ -169,6 +169,19 @@ bool abs_fft(float **X_RE, float **X_IM, float **X_abs, int N)
     return true;
 }
 
+template <typename T>
+bool save_to_file(const char *filename, T *data, int N)
+{
+    std::ofstream bin_file(filename, std::ios::binary);
+    if (!bin_file.is_open())
+    {
+        return false;
+    }
+    bin_file.write(reinterpret_cast<const char*>(data), N * sizeof(T));
+    bin_file.close();
+    return true;
+}
+
 int main(int argc, char const *argv[])
 {
     unsigned int *order = nullptr;
@@ -190,13 +203,19 @@ int main(int argc, char const *argv[])
         return ret_fail_memory_generate_signals;
     }
 
+    if (!save_to_file("signals.bin", x, N_samples))
+    {
+        std::cerr << "Failed to save signals to file." << std::endl;
+        return ret_save_file;
+    }
+
     if (!generate_W_k_N(&W_k_N_RE, &W_k_N_IM, N_samples))
     {
         return ret_fail_memory_generate_W_k_N;
     }
 
     auto start = std::chrono::high_resolution_clock::now();
-    unsigned int n_iter = 1000;
+    unsigned int n_iter = 1000; // Số lần lặp để đo thời gian
     for (int i = 0; i < n_iter; ++i)
     {
         if (!fft(&x, &X_RE, &X_IM, &freq, frequence_sample, N_samples, &order, &W_k_N_RE, &W_k_N_IM))
@@ -209,11 +228,10 @@ int main(int argc, char const *argv[])
         }
     }
 
-    std::ofstream bin_file("fft.bin", std::ios::binary);
-    if (bin_file.is_open())
+    if (!save_to_file("fft_result.bin", X, N_samples))
     {
-        bin_file.write(reinterpret_cast<const char*>(X), N_samples * sizeof(float));
-        bin_file.close();
+        std::cerr << "Failed to save FFT result to file." << std::endl;
+        return ret_save_file;
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -228,7 +246,7 @@ int main(int argc, char const *argv[])
     delete[] X_RE;
     delete[] X_IM;
     delete[] freq;
-    return 0;
+    return ret_success;
 }
 
 // g++ -std=c++17 fft.cpp -o fft -lm && ./fft
