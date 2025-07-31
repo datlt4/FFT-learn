@@ -67,7 +67,7 @@ if __name__ == "__main__":
     # Tham số
     fs = 128  # Tần số lấy mẫu (Hz)
     # T = 8     # Thời gian (giây)
-    T = 0.0625
+    T = 8
     N = int(fs * T)  # Số mẫu
 
     # Tạo thời gian
@@ -82,14 +82,15 @@ if __name__ == "__main__":
     x += noise
 
     # Tính FFT
-    X_np = np.fft.rfft(x)
-    print(timeit.timeit(lambda: np.fft.rfft(x), number=1))
+    X_np = np.fft.fft(x)
+    # fft(x)
+    print(timeit.timeit(lambda: np.fft.fft(x), number=1))
 
     # Tính độ lớn
     magnitude_np = np.abs(X_np)
 
     # Tính tần số (chỉ lấy f > 0)
-    frequencies_np = np.fft.rfftfreq(N, 1/fs)
+    frequencies_np = np.fft.fftfreq(N, 1/fs)
 
     # FFT thủ công
     my_X = fft(x)
@@ -97,8 +98,13 @@ if __name__ == "__main__":
     df = fs / N
     my_frequencies = np.arange(N) * df
     my_magnitude = np.abs(my_X)
-
-    import ipdb; ipdb.set_trace()
+    
+    # FFT thủ công
+    my_X2 = fft2(x)
+    print(timeit.timeit(lambda: fft2(x), number=1))
+    df = fs / N
+    my_frequencies2 = np.arange(N) * df
+    my_magnitude2 = np.abs(my_X2)
 
     # Load binary files
     with open("fft.bin", "rb") as f:
@@ -106,41 +112,51 @@ if __name__ == "__main__":
 
     # Vẽ tín hiệu trong miền thời gian
     plt.figure(figsize=(12, 5))
-    plt.subplot(4, 1, 1)
+    plt.subplot(5, 1, 1)
     plt.plot(t, x, label='Tín hiệu')
     plt.xlabel('Thời gian (s)')
     plt.ylabel('Biên độ')
-    plt.title('Tín hiệu trong miền thời gian')
+    # plt.title('Tín hiệu trong miền thời gian')
     plt.grid()
     plt.legend()
     
     # Vẽ phổ tần số (f>0)
-    plt.subplot(4, 1, 2)
+    plt.subplot(5, 1, 2)
     plt.plot(frequencies_np, magnitude_np, label='Phổ tần số')
     plt.xlabel('Tần số (Hz)')
     plt.ylabel('Độ lớn')
-    plt.title('Phổ tần số')
+    # plt.title('Phổ tần số')
     plt.grid()
     plt.legend()
 
     # Vẽ tín hiệu trong miền tần số
-    plt.subplot(4, 1, 3)
-    plt.plot(my_frequencies, my_magnitude, label='FFT thủ công')
+    plt.subplot(5, 1, 3)
+    plt.plot(my_frequencies, my_magnitude, label='FFT thủ công python')
     plt.xlabel('Tần số (Hz)')
     plt.ylabel('Độ lớn')
-    plt.title('FFT thủ công')
+    # plt.title('FFT thủ công python')
     plt.grid()
     plt.legend()
-    
+
+    # Vẽ tín hiệu trong miền tần số
+    plt.subplot(5, 1, 4)
+    plt.plot(my_frequencies, my_magnitude, label='FFT thủ công chatgpt')
+    plt.xlabel('Tần số (Hz)')
+    plt.ylabel('Độ lớn')
+    # plt.title('FFT thủ công chatgpt')
+    plt.grid()
+    plt.legend()
+
     # Vẽ phổ tần số (f>0)
-    plt.subplot(4, 1, 4)
+    plt.subplot(5, 1, 5)
     plt.plot(my_frequencies, X_cpp, label='FFT thủ công cpp')
     plt.xlabel('Tần số (Hz)')
     plt.ylabel('Độ lớn')
-    plt.title('FFT thủ công cpp')
+    # plt.title('FFT thủ công cpp')
     plt.grid()
     plt.legend()
 
     # Hiển thị
-    plt.tight_layout()
+    plt.subplots_adjust(hspace=0.5)  # Adjust this value (e.g., 0.1 for tighter spacing)
+    # plt.tight_layout()
     plt.show()

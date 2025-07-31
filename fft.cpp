@@ -5,8 +5,8 @@
 #include <chrono>
 #include <fstream>
 
-#define N_samples 8
-#define log2_N 3
+#define N_samples 1024
+#define log2_N 10 // log2(1024) = 10
 #define frequence_sample 128
 
 enum ret_code
@@ -80,7 +80,7 @@ bool generate_signals(float **x, int N, float fs)
         (*x)[i] = 0.5 * sin(2 * M_PI * f1 * t) + 0.3 * sin(2 * M_PI * f2 * t);
         t += delta_t;
         // Thêm nhiễu Gaussian
-        float noise = 0.1 * rand() / RAND_MAX;
+        float noise = 0.1 * rand() / RAND_MAX - 0.05; // Giả sử nhiễu Gaussian có trung bình 0 và phương sai 0.01
         (*x)[i] += noise;
     }
     return true;
@@ -101,8 +101,10 @@ bool generate_W_k_N(float **W_k_N_RE, float **W_k_N_IM, int N)
         for (int k = 0; k < (1 << _N); ++k)
         {
             int _k = k & ((1 << _N) - 1);
-            (*W_k_N_RE)[k] = cos(2 * M_PI * _k / (1 << (_N + 1)));
-            (*W_k_N_IM)[k] = -1 * sin(2 * M_PI * _k / (1 << (_N + 1)));
+            int w_idx = (1 << _N) - 1 + _k; // Reverse index for W_k_N
+            double angle = 2 * M_PI * _k / (1 << (_N + 1));
+            (*W_k_N_RE)[w_idx] = cos(angle);
+            (*W_k_N_IM)[w_idx] = -sin(angle);
         }
     }
     return true;
@@ -139,7 +141,7 @@ bool fft(float **x, float** X_RE, float** X_IM, float** freq, float fs, int N, u
                 continue;
             }
             unsigned int _k = k & (_2_i - 1);
-            unsigned int W_idx = _k & (_N - 1);
+            unsigned int W_idx = _k + (_2_i - 1);
             float A_RE = (*X_RE)[k] + (*W_k_N_RE)[W_idx] * (*X_RE)[k + _2_i] - (*W_k_N_IM)[W_idx] * (*X_IM)[k + _2_i];
             float A_IM = (*X_IM)[k] + (*W_k_N_RE)[W_idx] * (*X_IM)[k + _2_i] + (*W_k_N_IM)[W_idx] * (*X_RE)[k + _2_i];
             float B_RE = (*X_RE)[k] - (*W_k_N_RE)[W_idx] * (*X_RE)[k + _2_i] + (*W_k_N_IM)[W_idx] * (*X_IM)[k + _2_i];
