@@ -136,13 +136,16 @@ if __name__ == "__main__":
     with open("fft_result.bin", "rb") as f:
         X_cpp = np.fromfile(f, dtype=np.float32)
 
+    with open("ifft_result.bin", "rb") as f:
+        x_cpp_inv = np.fromfile(f, dtype=np.float32)
+
     # ---------------------------
     # Plot results
     # ---------------------------
     plt.figure(figsize=(12, 5))
 
     # Original signal (Python)
-    plt.subplot(6, 1, 1)
+    plt.subplot(7, 1, 1)
     plt.plot(t, x, label='Signal (Python)')
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
@@ -150,7 +153,7 @@ if __name__ == "__main__":
     plt.legend()
 
     # NumPy FFT spectrum
-    plt.subplot(6, 1, 2)
+    plt.subplot(7, 1, 2)
     plt.plot(frequencies_np, magnitude_np, label='NumPy FFT')
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Magnitude')
@@ -158,7 +161,7 @@ if __name__ == "__main__":
     plt.legend()
 
     # Manual FFT #1 spectrum
-    plt.subplot(6, 1, 3)
+    plt.subplot(7, 1, 3)
     plt.plot(my_frequencies, my_magnitude, label='Manual FFT #1 (Python)')
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Magnitude')
@@ -166,7 +169,7 @@ if __name__ == "__main__":
     plt.legend()
 
     # Manual FFT #2 spectrum
-    plt.subplot(6, 1, 4)
+    plt.subplot(7, 1, 4)
     plt.plot(my_frequencies2, my_magnitude2, label='Manual FFT #2 (Python)')
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Magnitude')
@@ -174,7 +177,7 @@ if __name__ == "__main__":
     plt.legend()
 
     # Original signal from C++
-    plt.subplot(6, 1, 5)
+    plt.subplot(7, 1, 5)
     plt.plot(t, x_cpp, label='Signal (C++)')
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
@@ -182,10 +185,18 @@ if __name__ == "__main__":
     plt.legend()
 
     # FFT spectrum from C++
-    plt.subplot(6, 1, 6)
+    plt.subplot(7, 1, 6)
     plt.plot(my_frequencies, X_cpp, label='FFT (C++)')
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Magnitude')
+    plt.grid()
+    plt.legend()
+    
+    # IFFT spectrum from C++
+    plt.subplot(7, 1, 7)
+    plt.plot(my_frequencies, x_cpp_inv, label='IFFT (C++)')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
     plt.grid()
     plt.legend()
 

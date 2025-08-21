@@ -16,9 +16,11 @@ enum ret_code
     ret_fail_memory_generate_order = -1,
     ret_fail_memory_generate_signals = -2,
     ret_fail_memory_generate_W_k_N = -3,
-    ret_fail_memory_fft = -4,
-    ret_fail_memory_abs_fft = -5,
-    ret_save_file = -6
+    ret_fail_memory_generate_W_k_N_inv = -4,
+    ret_fail_memory_fft = -5,
+    ret_fail_memory_ifft = -6,
+    ret_fail_memory_abs_fft = -7,
+    ret_save_file = -8
 };
 
 // Utility: reallocates pointer array memory
@@ -69,29 +71,37 @@ bool generate_order(unsigned int **order, int N)
 }
 
 // Generate a test signal: sum of two sinusoids (0.7 Hz & 1.3 Hz) + noise
-bool generate_signals(float **x, int N, float fs)
+bool generate_signals(float **x_RE, float **x_IM, int N, float fs)
 {
-    if (!reallocate_ptr<float>(x, N)) return false;
-    float f1 = 0.7, f2 = 1.3; // Frequencies in Hz
+    if (!reallocate_ptr<float>(x_RE, N)) return false;
+    if (!reallocate_ptr<float>(x_IM, N)) return false;
+    float f1 = 0.7, f2 = 1.3, f3 = 2.5, f4 = 3.7, f5 = 5.1, f6 = 6.3; // Frequencies in Hz
     float delta_t = 1.0 / fs;
     float t = 0;
 
     for (int i = 0; i < N; ++i)
     {
         // Two sine waves
-        (*x)[i] = 0.5 * sin(2 * M_PI * f1 * t) + 0.3 * sin(2 * M_PI * f2 * t);
+        (*x_RE)[i] = 0.5 * sin(2 * M_PI * f1 * t)
+                    + 0.3 * sin(2 * M_PI * f2 * t)
+                    + 0.2 * sin(2 * M_PI * f3 * t)
+                    + 0.1 * sin(2 * M_PI * f4 * t)
+                    + 0.05 * sin(2 * M_PI * f5 * t)
+                    + 0.025 * sin(2 * M_PI * f6 * t);
+        (*x_IM)[i] = 0;
         t += delta_t;
 
         // Add small random noise
-        float noise = 0.2 * rand() / RAND_MAX - 0.05;
-        (*x)[i] += noise;
+        float noise = 0.2 * rand() / RAND_MAX - 0.1;
+        (*x_RE)[i] += noise;
+        // (*x_IM)[i] += noise;
     }
     return true;
 }
 
 // Precompute twiddle factors W_k_N for FFT
 // Stored in a flat 1D array of size N-1, indexed per FFT stage
-bool generate_W_k_N(float **W_k_N_RE, float **W_k_N_IM, int N)
+bool generate_W_k_N(float **W_k_N_RE, float **W_k_N_IM, int N, bool inv = false)
 {
     if (!reallocate_ptr<float>(W_k_N_RE, N - 1)) return false;
     if (!reallocate_ptr<float>(W_k_N_IM, N - 1)) return false;
@@ -103,16 +113,16 @@ bool generate_W_k_N(float **W_k_N_RE, float **W_k_N_IM, int N)
             int w_idx = (1 << _N) - 1 + _k; // Index into flattened twiddle array
             double angle = 2 * M_PI * _k / (1 << (_N + 1));
             (*W_k_N_RE)[w_idx] = cos(angle);
-            (*W_k_N_IM)[w_idx] = -sin(angle);
+            (*W_k_N_IM)[w_idx] = inv ? sin(angle) : -sin(angle);
         }
     }
     return true;
 }
 
 // Perform iterative Cooley-Tukey FFT using precomputed twiddle factors
-bool fft(float **x, float **X_RE, float **X_IM, float **freq,
+bool fft(float **x_RE, float **x_IM, float **X_RE, float **X_IM, float **freq,
          float fs, int N, unsigned int **order,
-         float **W_k_N_RE, float **W_k_N_IM)
+         float **W_k_N_RE, float **W_k_N_IM, float factor = 1.0f)
 {
     if (!reallocate_ptr<float>(X_RE, N)) return false;
     if (!reallocate_ptr<float>(X_IM, N)) return false;
@@ -121,8 +131,8 @@ bool fft(float **x, float **X_RE, float **X_IM, float **freq,
     // Bit-reversal reordering of input signal
     for (int i = 0; i < N; ++i)
     {
-        (*X_RE)[i] = (*x)[(*order)[i]];
-        (*X_IM)[i] = 0;
+        (*X_RE)[i] = (*x_RE)[(*order)[i]];
+        (*X_IM)[i] = (*x_IM)[(*order)[i]];
     }
 
     // FFT stages
@@ -154,6 +164,15 @@ bool fft(float **x, float **X_RE, float **X_IM, float **freq,
             (*freq)[k] = k * fs / N;
         }
     }
+
+    if (factor != 1.0f)
+    {
+        for (int i = 0; i < N; ++i)
+        {
+            (*X_RE)[i] *= factor;
+            (*X_IM)[i] *= factor;
+        }
+    }
     return true;
 }
 
@@ -182,66 +201,128 @@ bool save_to_file(const char *filename, T *data, int N)
 int main(int argc, char const *argv[])
 {
     unsigned int *order = nullptr;
-    float *x = nullptr;
-    float *W_k_N_RE = nullptr;
-    float *W_k_N_IM = nullptr;
+    float *x_RE = nullptr;
+    float *x_IM = nullptr;
     float *X_RE = nullptr;
     float *X_IM = nullptr;
+    float *X_abs = nullptr;
+    float *X_RE_inv = nullptr;
+    float *X_IM_inv = nullptr;
+    // float *x_abs_inv = nullptr;
+    float *W_k_N_RE = nullptr;
+    float *W_k_N_IM = nullptr;
+    float *W_k_N_inv_RE = nullptr;
+    float *W_k_N_inv_IM = nullptr;
     float *freq = nullptr;
-    float *X = nullptr;
 
     // Generate FFT bit-reversal order
-    if (!generate_order(&order, N_samples)) return ret_fail_memory_generate_order;
+    if (!generate_order(&order, N_samples)) return ret_code::ret_fail_memory_generate_order;
 
     // Generate test input signal
-    if (!generate_signals(&x, N_samples, frequence_sample)) return ret_fail_memory_generate_signals;
+    if (!generate_signals(&x_RE, &x_IM, N_samples, frequence_sample)) return ret_code::ret_fail_memory_generate_signals;
 
     // Save time-domain signal to file
-    if (!save_to_file("signals.bin", x, N_samples))
+    if (!save_to_file("signals.bin", x_RE, N_samples))
     {
         std::cerr << "Failed to save signals to file." << std::endl;
-        return ret_save_file;
+        return ret_code::ret_save_file;
     }
 
     // Precompute FFT twiddle factors
-    if (!generate_W_k_N(&W_k_N_RE, &W_k_N_IM, N_samples)) return ret_fail_memory_generate_W_k_N;
+    if (!generate_W_k_N(&W_k_N_RE, &W_k_N_IM, N_samples))
+    {
+        std::cerr << "Failed to generate FFT twiddle factors." << std::endl;
+        return ret_code::ret_fail_memory_generate_W_k_N;
+    }
 
     // Measure performance
-    auto start = std::chrono::high_resolution_clock::now();
+    auto start_fft = std::chrono::high_resolution_clock::now();
     unsigned int n_iter = 1000; // Number of iterations for timing
     for (int i = 0; i < n_iter; ++i)
     {
-        if (!fft(&x, &X_RE, &X_IM, &freq, frequence_sample,
-                 N_samples, &order, &W_k_N_RE, &W_k_N_IM))
-            return ret_fail_memory_fft;
+        if (!fft(&x_RE, &x_IM, &X_RE, &X_IM, &freq, frequence_sample, N_samples, &order, &W_k_N_RE, &W_k_N_IM))
+        {
+            std::cerr << "Failed to perform FFT." << std::endl;
+            return ret_code::ret_fail_memory_fft;
+        }
 
-        if (!abs_fft(&X_RE, &X_IM, &X, N_samples))
-            return ret_fail_memory_abs_fft;
+        if (!abs_fft(&X_RE, &X_IM, &X_abs, N_samples))
+        {
+            std::cerr << "Failed to compute FFT magnitude." << std::endl;
+            return ret_code::ret_fail_memory_abs_fft;
+        }
     }
+    auto end_fft = std::chrono::high_resolution_clock::now();
+
+    // Print performance results
+    auto duration_fft_us = std::chrono::duration_cast<std::chrono::microseconds>(end_fft - start_fft);
+    unsigned int duration_fft = duration_fft_us.count() / n_iter;
+    std::cout << "Time elapsed: " << duration_fft / 1000. << " ms"
+              << "\tfps: " << 1. / duration_fft * 1000000. << std::endl;
 
     // Save FFT magnitude to file
-    if (!save_to_file("fft_result.bin", X, N_samples))
+    if (!save_to_file("fft_result.bin", X_abs, N_samples))
     {
         std::cerr << "Failed to save FFT result to file." << std::endl;
-        return ret_save_file;
+        return ret_code::ret_save_file;
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration_us = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    unsigned int duration = duration_us.count() / n_iter;
-    std::cout << "Time elapsed: " << duration / 1000. << " ms"
-              << "\tfps: " << 1. / duration * 1000000. << std::endl;
+    // Precompute IFFT twiddle factors
+    if (!generate_W_k_N(&W_k_N_inv_RE, &W_k_N_inv_IM, N_samples, true))
+    {
+        std::cerr << "Failed to generate IFFT twiddle factors." << std::endl;
+        return ret_code::ret_fail_memory_generate_W_k_N_inv;
+    }
+
+    // Measure performance
+    auto start_ifft = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < n_iter; ++i)
+    {
+        float factor = 1.0f / N_samples;
+        if (!fft(&X_RE, &X_IM, &X_RE_inv, &X_IM_inv, &freq, frequence_sample, N_samples, &order, &W_k_N_inv_RE, &W_k_N_inv_IM, factor))
+        {
+            std::cerr << "Failed to perform IFFT." << std::endl;
+            return ret_code::ret_fail_memory_ifft;
+        }
+
+        // if (!abs_fft(&X_RE_inv, &X_IM_inv, &x_abs_inv, N_samples))
+        // {
+        //     std::cerr << "Failed to compute IFFT magnitude." << std::endl;
+        //     return ret_code::ret_fail_memory_abs_fft;
+        // }
+    }
+    auto end_ifft = std::chrono::high_resolution_clock::now();
+
+    // Print performance results
+    auto duration_ifft_us = std::chrono::duration_cast<std::chrono::microseconds>(end_ifft - start_ifft);
+    unsigned int duration_ifft = duration_ifft_us.count() / n_iter;
+    std::cout << "Time elapsed: " << duration_ifft / 1000. << " ms"
+              << "\tfps: " << 1. / duration_ifft * 1000000. << std::endl;
+
+    // Save IFFT result to file
+    if (!save_to_file("ifft_result.bin", X_RE_inv, N_samples))
+    {
+        std::cerr << "Failed to save IFFT result to file." << std::endl;
+        return ret_code::ret_save_file;
+    }
 
     // Free memory
-    delete[] x;
+    delete[] X_RE;
+    delete[] X_IM;
+    delete[] x_RE;
+    delete[] x_IM;
+    delete[] X_abs;
+    delete[] X_RE_inv;
+    delete[] X_IM_inv;
+    // delete[] x_abs_inv;
     delete[] order;
     delete[] W_k_N_RE;
     delete[] W_k_N_IM;
-    delete[] X_RE;
-    delete[] X_IM;
+    delete[] W_k_N_inv_RE;
+    delete[] W_k_N_inv_IM;
     delete[] freq;
 
-    return ret_success;
+    return ret_code::ret_success;
 }
 
 // Compile & run:
