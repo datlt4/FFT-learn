@@ -145,7 +145,7 @@ if __name__ == "__main__":
     plt.figure(figsize=(12, 5))
 
     # Original signal (Python)
-    plt.subplot(7, 1, 1)
+    plt.subplot(7, 2, 1)
     plt.plot(t, x, label='Signal (Python)')
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     plt.legend()
 
     # NumPy FFT spectrum
-    plt.subplot(7, 1, 2)
+    plt.subplot(7, 2, 3)
     plt.plot(frequencies_np, magnitude_np, label='NumPy FFT')
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Magnitude')
@@ -161,7 +161,7 @@ if __name__ == "__main__":
     plt.legend()
 
     # Manual FFT #1 spectrum
-    plt.subplot(7, 1, 3)
+    plt.subplot(7, 2, 5)
     plt.plot(my_frequencies, my_magnitude, label='Manual FFT #1 (Python)')
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Magnitude')
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     plt.legend()
 
     # Manual FFT #2 spectrum
-    plt.subplot(7, 1, 4)
+    plt.subplot(7, 2, 7)
     plt.plot(my_frequencies2, my_magnitude2, label='Manual FFT #2 (Python)')
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Magnitude')
@@ -177,7 +177,7 @@ if __name__ == "__main__":
     plt.legend()
 
     # Original signal from C++
-    plt.subplot(7, 1, 5)
+    plt.subplot(7, 2, 9)
     plt.plot(t, x_cpp, label='Signal (C++)')
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
@@ -185,7 +185,7 @@ if __name__ == "__main__":
     plt.legend()
 
     # FFT spectrum from C++
-    plt.subplot(7, 1, 6)
+    plt.subplot(7, 2, 11)
     plt.plot(my_frequencies, X_cpp, label='FFT (C++)')
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Magnitude')
@@ -193,8 +193,64 @@ if __name__ == "__main__":
     plt.legend()
     
     # IFFT spectrum from C++
-    plt.subplot(7, 1, 7)
+    plt.subplot(7, 2, 13)
     plt.plot(my_frequencies, x_cpp_inv, label='IFFT (C++)')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
+    plt.grid()
+    plt.legend()
+
+    # Original signal (Python)
+    plt.subplot(7, 2, 2)
+    plt.plot(t, x, label='Signal (Python)', color='orange')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
+    plt.grid()
+    plt.legend()
+
+    # NumPy FFT spectrum
+    plt.subplot(7, 2, 4)
+    plt.plot(frequencies_np, magnitude_np, label='NumPy FFT', color='orange')
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Magnitude')
+    plt.grid()
+    plt.legend()
+
+    # Manual FFT #1 spectrum
+    plt.subplot(7, 2, 6)
+    plt.plot(my_frequencies, my_magnitude, label='Manual FFT #1 (Python)', color='orange')
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Magnitude')
+    plt.grid()
+    plt.legend()
+
+    # Manual FFT #2 spectrum
+    plt.subplot(7, 2, 8)
+    plt.plot(my_frequencies2, my_magnitude2, label='Manual FFT #2 (Python)', color='orange')
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Magnitude')
+    plt.grid()
+    plt.legend()
+
+    # Original signal from C++
+    plt.subplot(7, 2, 10)
+    plt.plot(t, x_cpp, label='Signal (C++)', color='orange')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
+    plt.grid()
+    plt.legend()
+
+    # FFT spectrum from C++
+    plt.subplot(7, 2, 12)
+    plt.plot(my_frequencies, X_cpp, label='FFT (C++)', color='orange')
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Magnitude')
+    plt.grid()
+    plt.legend()
+    
+    # IFFT spectrum from C++
+    plt.subplot(7, 2, 14)
+    plt.plot(my_frequencies, x_cpp_inv, label='IFFT (C++)', color='orange')
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
     plt.grid()
