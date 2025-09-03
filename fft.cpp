@@ -70,31 +70,120 @@ bool generate_order(unsigned int **order, int N)
     return true;
 }
 
-// Generate a test signal: sum of two sinusoids (0.7 Hz & 1.3 Hz) + noise
+/** Generate parabolic signals
+ * @param A Amplitude
+ * @param f Wave frequency in Hz
+ * @param t time to get the value (ms)
+ * @return value of signal in timestamp
+*/
+float generate_parabolic_signals(float A, float f, float t)
+{
+    return A * pow(t * f, 2) * cos(2 * M_PI * f * t);
+}
+
+/** Generate sine signals
+ * @param A Amplitude
+ * @param f Wave frequency in Hz
+ * @param t time to get the value (ms)
+ * @return value of signal in timestamp
+*/
+float generate_sine_signals(float A, float f, float t)
+{
+    return A * sin(2 * M_PI * f * t);
+}   
+
+/** Generate cosine signals
+ * @param A Amplitude
+ * @param f Wave frequency in Hz
+ * @param t time to get the value (ms)
+ * @return value of signal in timestamp
+*/
+float generate_cosine_signals(float A, float f, float t)
+{
+    return A * cos(2 * M_PI * f * t);
+}
+
+/** Generate sawtooth signals
+ * @param A Amplitude
+ * @param f Wave frequency in Hz
+ * @param t time to get the value (ms)
+ * @return value of signal in timestamp
+*/
+float generate_sawtooth_signals(float A, float f, float t)
+{
+    return A * (2 * (t * f - floor(t * f + 0.5)));
+}
+
+/** Generate square signals
+ * @param A Amplitude
+ * @param f Wave frequency in Hz
+ * @param t time to get the value (ms)
+ * @return value of signal in timestamp
+*/
+float generate_square_signals(float A, float f, float t)
+{
+    return A * (fmod(t * f, 1) < 0.5 ? 1 : -1);
+}
+
+/**
+ * Generate triangle signals
+ * @param A Amplitude
+ * @param f Wave frequency in Hz
+ * @param t time to get the value (ms)
+ * @return value of signal in timestamp
+ */
+float generate_triangle_signals(float A, float f, float t)
+{
+    return A * (1 - fabs(fmod(t * f, 1) - 0.5) * 2);
+}
+
+/** Generate white noise
+ * @param A Amplitude
+ * @return value of white noise
+ */
+float generate_white_noise(float A)
+{
+    return A * (rand() / (float)RAND_MAX * 2 - 1);
+}
+
+/** Generate pink noise
+ * @param A Amplitude
+ * @return value of pink noise
+ */
+float generate_pink_noise(float A)
+{
+    static float pink[16] = {0};
+    static int index = 0;
+    float white = generate_white_noise(A);
+    pink[index] = (pink[index] + white) / 2;
+    index = (index + 1) % 16;
+    return pink[index];
+}
+
+// Generate a test signal + noise
 bool generate_signals(float **x_RE, float **x_IM, int N, float fs)
 {
-    if (!reallocate_ptr<float>(x_RE, N)) return false;
-    if (!reallocate_ptr<float>(x_IM, N)) return false;
-    float f1 = 0.7, f2 = 1.3, f3 = 2.5, f4 = 3.7, f5 = 5.1, f6 = 6.3; // Frequencies in Hz
+    if (!reallocate_ptr<float>(x_RE, N))
+        return false;
+    if (!reallocate_ptr<float>(x_IM, N))
+        return false;
+
+    float f_0 = 0.1, f1 = 0.7, f2 = 1.3, f3 = 2.5, f4 = 3.7, f5 = 5.1, f6 = 0.01; // Frequencies in Hz
     float delta_t = 1.0 / fs;
     float t = 0;
 
     for (int i = 0; i < N; ++i)
     {
         // Two sine waves
-        (*x_RE)[i] = 0.5 * sin(2 * M_PI * f1 * t)
-                    + 0.3 * sin(2 * M_PI * f2 * t)
-                    + 0.2 * sin(2 * M_PI * f3 * t)
-                    + 0.1 * sin(2 * M_PI * f4 * t)
-                    + 0.05 * sin(2 * M_PI * f5 * t)
-                    + 0.025 * sin(2 * M_PI * f6 * t);
+        (*x_RE)[i] = generate_sine_signals(0.5, f1, t)
+                    + generate_sine_signals(0.3, f2, t)
+                    + generate_sine_signals(0.2, f3, t)
+                    + generate_sine_signals(0.1, f4, t)
+                    + generate_sine_signals(0.05, f5, t)
+                    + generate_sine_signals(0.025, f6, t)
+                    + generate_pink_noise(0.2);
         (*x_IM)[i] = 0;
         t += delta_t;
-
-        // Add small random noise
-        float noise = 0.2 * rand() / RAND_MAX - 0.1;
-        (*x_RE)[i] += noise;
-        // (*x_IM)[i] += noise;
     }
     return true;
 }
@@ -103,8 +192,10 @@ bool generate_signals(float **x_RE, float **x_IM, int N, float fs)
 // Stored in a flat 1D array of size N-1, indexed per FFT stage
 bool generate_W_k_N(float **W_k_N_RE, float **W_k_N_IM, int N, bool inv = false)
 {
-    if (!reallocate_ptr<float>(W_k_N_RE, N - 1)) return false;
-    if (!reallocate_ptr<float>(W_k_N_IM, N - 1)) return false;
+    if (!reallocate_ptr<float>(W_k_N_RE, N - 1))
+        return false;
+    if (!reallocate_ptr<float>(W_k_N_IM, N - 1))
+        return false;
     for (int _N = 0; _N < log2_N; ++_N)
     {
         for (int k = 0; k < (1 << _N); ++k)
@@ -124,9 +215,12 @@ bool fft(float **x_RE, float **x_IM, float **X_RE, float **X_IM, float **freq,
          float fs, int N, unsigned int **order,
          float **W_k_N_RE, float **W_k_N_IM, float factor = 1.0f)
 {
-    if (!reallocate_ptr<float>(X_RE, N)) return false;
-    if (!reallocate_ptr<float>(X_IM, N)) return false;
-    if (!reallocate_ptr<float>(freq, N)) return false;
+    if (!reallocate_ptr<float>(X_RE, N))
+        return false;
+    if (!reallocate_ptr<float>(X_IM, N))
+        return false;
+    if (!reallocate_ptr<float>(freq, N))
+        return false;
 
     // Bit-reversal reordering of input signal
     for (int i = 0; i < N; ++i)
@@ -179,7 +273,8 @@ bool fft(float **x_RE, float **x_IM, float **X_RE, float **X_IM, float **freq,
 // Compute magnitude of FFT result
 bool abs_fft(float **X_RE, float **X_IM, float **X_abs, int N)
 {
-    if (!reallocate_ptr<float>(X_abs, N)) return false;
+    if (!reallocate_ptr<float>(X_abs, N))
+        return false;
     for (int i = 0; i < N; ++i)
     {
         (*X_abs)[i] = sqrt((*X_RE)[i] * (*X_RE)[i] + (*X_IM)[i] * (*X_IM)[i]);
@@ -187,12 +282,29 @@ bool abs_fft(float **X_RE, float **X_IM, float **X_abs, int N)
     return true;
 }
 
+// Butterworth Filter - Low-pass filter
+// Butterworth Filter - High-pass filter
+// Butterworth Filter - Band-pass filter
+// Butterworth Filter - Band-stop filter
+
+// Chebyshev Filter - Low-pass filter
+bool chebyshev_lowpass(float **x_RE, float **x_IM, float **X_RE, float **X_IM, float cutoff_freq, float ripple, int N)
+{
+    // Design and apply Chebyshev low-pass filter
+    return true;
+}
+
+// Chebyshev Filter - High-pass filter
+// Chebyshev Filter - Band-pass filter
+// Chebyshev Filter - Band-stop filter
+
 // Save binary data to file
 template <typename T>
 bool save_to_file(const char *filename, T *data, int N)
 {
     std::ofstream bin_file(filename, std::ios::binary);
-    if (!bin_file.is_open()) return false;
+    if (!bin_file.is_open())
+        return false;
     bin_file.write(reinterpret_cast<const char *>(data), N * sizeof(T));
     bin_file.close();
     return true;
@@ -216,10 +328,12 @@ int main(int argc, char const *argv[])
     float *freq = nullptr;
 
     // Generate FFT bit-reversal order
-    if (!generate_order(&order, N_samples)) return ret_code::ret_fail_memory_generate_order;
+    if (!generate_order(&order, N_samples))
+        return ret_code::ret_fail_memory_generate_order;
 
     // Generate test input signal
-    if (!generate_signals(&x_RE, &x_IM, N_samples, frequence_sample)) return ret_code::ret_fail_memory_generate_signals;
+    if (!generate_signals(&x_RE, &x_IM, N_samples, frequence_sample))
+        return ret_code::ret_fail_memory_generate_signals;
 
     // Save time-domain signal to file
     if (!save_to_file("signals.bin", x_RE, N_samples))
